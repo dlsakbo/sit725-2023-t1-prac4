@@ -1,44 +1,63 @@
-var express = require("express");
-const res = require("express/lib/response");
-var app = express()
-var port = process.env.port || 3000;
+let express = require('express');
+let app = express();
+const { MongoClient, ServerApiVersion } = require('mongodb');
+const uri = "mongodb+srv://akbosithira7:tkWNln8HVpnZPRfa@cluster0.li1zpwo.mongodb.net/?retryWrites=true&w=majority";
+let port = process.env.port || 3000;
+let collection;
 
+app.use(express.static(__dirname + '/'));
 app.use(express.json());
+app.use(express.urlencoded({extended: false}));
 
-app.get('/add', (req, res) => {
-    const { num1, num2 } = req.query;
-    if (!num1 || !num2) {
-        return res.status(400).json({ error: 'Please provide both num1 and num2 parameters.' });
+const client = new MongoClient(uri, {
+    serverApi: {
+        version: ServerApiVersion.v1,
+        strict: true,
+        deprecationErrors: true,
     }
-    const result = parseFloat(num1) + parseFloat(num2);
-    return res.json({ result });
 });
 
-app.post('/calculate', (req, res) => {
-    const { operation, num1, num2 } = req.body;
-    if (!operation || !num1 || !num2) {
-        return res.status(400).json({ error: 'Please provide operation, num1, and num2 parameters.' });
+
+async function runDBConnection() {
+    try {
+        await client.connect();
+        collection = client.db().collection('Fairway');
+        console.log(collection);
+    } catch(ex) {
+        console.error(ex);
     }
-    let result;
-    switch (operation) {
-        case 'add':
-            result = parseFloat(num1) + parseFloat(num2);
-            break;
-        case 'subtract':
-            result = parseFloat(num1) - parseFloat(num2);
-            break;
-        case 'multiply':
-            result = parseFloat(num1) * parseFloat(num2);
-            break;
-        case 'divide':
-            result = parseFloat(num1) / parseFloat(num2);
-            break;
-        default:
-            return res.status(400).json({ error: 'Invalid operation. Supported operations: add, subtract, multiply, divide.' });
-    }
-    return res.json({ result });
+}
+
+app.get('/', function (req,res) {
+    res.render('index.html');
 });
 
-app.listen(port, () => {
-    console.log(`App listening to http://localhost:${port}`);
+app.get('/api/fairway', (req,res) => {
+    getAllFairway((err,result)=>{
+        if (!err) {
+            res.json({statusCode:200, data:result, message:'get all  successful'});
+        }
+    });
+});
+
+app.post('/api/fairway', (req,res)=>{
+    let fairway = req.body;
+    postFairway(Fairway, (err, result) => {
+        if (!err) {
+            res.json({statusCode:201, data:result, message:'success'});
+        }
+    });
+});
+
+function postFairway(fairway,callback) {
+    collection.insertOne(fairway,callback);
+}
+
+function getAllFairway(callback){
+    collection.find({}).toArray(callback);
+}
+
+app.listen(port, ()=>{
+    console.log('express server started');
+    runDBConnection();
 });
